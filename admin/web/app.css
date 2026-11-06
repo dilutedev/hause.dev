@@ -254,7 +254,11 @@ dialog p { margin: 0 0 0.75rem; }
   .column-user, .column-threads, .column-started,
   td.user, td.threads, td.started { display: none; }
   .topbar, .vitals, .toolbar { padding-left: 1rem; padding-right: 1rem; }
-  .vitals { gap: 0.5rem 1.4rem; }
+  .vitals { display: grid; gap: 0.55rem; }
+  .vital { display: grid; grid-template-columns: 6ch 1fr; gap: 0.3rem 0.7rem; }
+  .vital-label { grid-column: 1; grid-row: 1; }
+  .vital-value { grid-column: 2; grid-row: 1; }
+  .meter { grid-column: 2; grid-row: 2; }
   .spark { display: none; }
   .topbar-actions button { padding: 0.3rem 0.55rem; }
   th button, td { padding-left: 0.5rem; padding-right: 0.5rem; }
