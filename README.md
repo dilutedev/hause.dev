@@ -6,7 +6,17 @@
 
 ## Deploy
 
-On the server:
+On the server, copy the example settings and fill in your own email and domains:
+
+```sh
+cp deploy/hause.env.example deploy/hause.env
+```
+
+- `HAUSE_ACME_EMAIL`: the contact email Caddy gives Let's Encrypt for certificates.
+- `HAUSE_SITE_DOMAIN`: the domain for the landing page, such as `hause.dev`.
+- `HAUSE_ADMIN_DOMAIN`: the domain for the admin panel, such as `su.hause.dev`.
+
+`deploy/hause.env` is ignored by git, so your email stays out of the repository. Then run:
 
 ```sh
 ./deploy/install.sh

@@ -1,12 +1,12 @@
 [Unit]
-Description=su.hause.dev admin panel
+Description={{HAUSE_ADMIN_DOMAIN}} admin panel
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 User=hause-admin
 Group=hause-admin
-ExecStart=/usr/local/bin/hause-admin -listen 127.0.0.1:8740 -data /var/lib/hause-admin -origin https://su.hause.dev
+ExecStart=/usr/local/bin/hause-admin -listen 127.0.0.1:8740 -data /var/lib/hause-admin -origin https://{{HAUSE_ADMIN_DOMAIN}}
 StateDirectory=hause-admin
 StateDirectoryMode=0700
 Restart=on-failure

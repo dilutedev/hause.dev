@@ -1,4 +1,4 @@
-su.hause.dev {
+{{HAUSE_ADMIN_DOMAIN}} {
 	encode zstd gzip
 	reverse_proxy 127.0.0.1:8740 {
 		header_up X-Real-IP {client_ip}
