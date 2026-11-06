@@ -26,7 +26,9 @@ const ui = {
   rows: byId("process-rows"),
   inspectorTitle: byId("inspector-title"),
   inspectorCommand: byId("inspector-command"),
+  inspectorPath: byId("inspector-path"),
   inspectorNote: byId("inspector-note"),
+  selectVisible: byId("select-visible"),
   quitButton: byId("quit-button"),
   forceQuitButton: byId("force-quit-button"),
   signalDialog: byId("signal-dialog"),
@@ -56,7 +58,8 @@ const state = {
   sortKey: "cpu",
   sortDescending: true,
   filterText: "",
-  selected: null,
+  selection: new Map(),
+  selectionAnchor: null,
   pendingSignal: null,
   pendingRemoval: null,
 };
@@ -364,6 +367,7 @@ async function refresh() {
   try {
     const snapshot = await api("/api/processes");
     state.snapshot = snapshot;
+    pruneSelection();
     state.cpuHistory.push(snapshot.system.cpu);
     if (state.cpuHistory.length > sparkLength) state.cpuHistory.shift();
     render();
@@ -439,7 +443,8 @@ function visibleProcesses() {
           process.name.toLowerCase().includes(needle) ||
           process.command.toLowerCase().includes(needle) ||
           process.user.toLowerCase().includes(needle) ||
-          String(process.pid) === needle,
+          String(process.pid) === needle ||
+          (process.ports || []).some((port) => String(port).includes(needle)),
       )
     : state.snapshot.processes.slice();
   const key = state.sortKey;
@@ -454,13 +459,29 @@ function visibleProcesses() {
   return matches;
 }
 
-function isSelected(process) {
-  return state.selected && state.selected.pid === process.pid && state.selected.startTicks === process.startTicks;
+function selectionKey(process) {
+  return `${process.pid}:${process.startTicks}`;
 }
 
-function selectedProcess() {
-  if (!state.selected || !state.snapshot) return null;
-  return state.snapshot.processes.find(isSelected) || null;
+function isSelected(process) {
+  return state.selection.has(selectionKey(process));
+}
+
+function selectedProcesses() {
+  if (!state.snapshot) return [];
+  return state.snapshot.processes.filter(isSelected);
+}
+
+function selectableProcesses() {
+  return selectedProcesses().filter((process) => !process.protected);
+}
+
+function pruneSelection() {
+  if (!state.snapshot) return;
+  const live = new Set(state.snapshot.processes.map(selectionKey));
+  for (const key of state.selection.keys()) {
+    if (!live.has(key)) state.selection.delete(key);
+  }
 }
 
 function cell(text, className, title) {
@@ -485,12 +506,23 @@ function renderTable() {
     }
     if (process.protected) row.classList.add("protected");
     const cpuClass = process.cpu >= 80 ? "numeric hot" : process.cpu >= 20 ? "numeric warm" : "numeric";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "row-check";
+    checkbox.checked = isSelected(process);
+    checkbox.setAttribute("aria-label", `Select ${process.name}`);
+    const checkCell = document.createElement("td");
+    checkCell.className = "check";
+    checkCell.append(checkbox);
+    const portList = (process.ports || []).join(", ");
     row.append(
+      checkCell,
       cell(process.name, "name", process.command),
       cell(String(process.pid), "numeric"),
       cell(process.user, "user"),
       cell(formatters.percent(process.cpu), cpuClass),
       cell(formatters.bytes(process.memory), "numeric"),
+      cell(portList, "numeric ports", portList ? `Listening on ${portList}` : ""),
       cell(String(process.threads), "numeric threads"),
       cell(formatters.duration((now - process.startedAt) / 1000), "started", new Date(process.startedAt).toLocaleString()),
     );
@@ -499,6 +531,9 @@ function renderTable() {
   ui.rows.replaceChildren(fragment);
   const total = state.snapshot.processes.length;
   ui.processCount.textContent = processes.length === total ? `${total} processes` : `${processes.length} of ${total} processes`;
+  const selectedVisible = processes.filter(isSelected).length;
+  ui.selectVisible.checked = processes.length > 0 && selectedVisible === processes.length;
+  ui.selectVisible.indeterminate = selectedVisible > 0 && selectedVisible < processes.length;
 
   for (const header of document.querySelectorAll("th[data-sort]")) {
     if (header.dataset.sort === state.sortKey) header.setAttribute("aria-sort", state.sortDescending ? "descending" : "ascending");
@@ -507,24 +542,42 @@ function renderTable() {
 }
 
 function renderInspector() {
-  const process = selectedProcess();
-  if (!state.selected) {
-    ui.inspectorTitle.textContent = "Select a process to quit it.";
+  const selected = selectedProcesses();
+  const actionable = selectableProcesses();
+  ui.inspectorPath.textContent = "";
+  if (selected.length === 0) {
+    ui.inspectorTitle.textContent = "Select processes to act on them.";
     ui.inspectorCommand.textContent = "";
     ui.quitButton.disabled = true;
     ui.forceQuitButton.disabled = true;
     return;
   }
-  if (!process) {
-    ui.inspectorTitle.textContent = `${state.selected.name} (${state.selected.pid}) has exited.`;
-    ui.inspectorCommand.textContent = "";
-    ui.quitButton.disabled = true;
-    ui.forceQuitButton.disabled = true;
+  if (selected.length > 1) {
+    ui.inspectorTitle.textContent = `${selected.length} processes selected.`;
+    const names = selected.slice(0, 4).map((process) => process.name);
+    if (selected.length > 4) names.push(`… ${selected.length - 4} more`);
+    ui.inspectorCommand.textContent = names.join(", ");
+    ui.inspectorCommand.title = selected.map((process) => `${process.name} (${process.pid})`).join(", ");
+    const blocked = selected.length - actionable.length;
+    if (blocked > 0) {
+      ui.inspectorNote.textContent = `${blocked} protected (systemd, sshd, this panel, …) can't be stopped.`;
+      ui.inspectorNote.className = "inspector-note blocked";
+    } else if (ui.inspectorNote.classList.contains("blocked")) {
+      ui.inspectorNote.textContent = "";
+      ui.inspectorNote.className = "inspector-note";
+    }
+    ui.quitButton.disabled = actionable.length === 0;
+    ui.forceQuitButton.disabled = actionable.length === 0;
     return;
   }
+  const process = selected[0];
   ui.inspectorTitle.textContent = `${process.name}, pid ${process.pid}, parent ${process.ppid}, running as ${process.user}`;
   ui.inspectorCommand.textContent = process.command;
   ui.inspectorCommand.title = process.command;
+  if (process.executable) {
+    ui.inspectorPath.textContent = process.executable;
+    ui.inspectorPath.title = process.executable;
+  }
   if (process.protected) {
     ui.inspectorNote.textContent = process.protected;
     ui.inspectorNote.className = "inspector-note blocked";
@@ -543,8 +596,32 @@ function render() {
   renderInspector();
 }
 
-function selectProcess(process) {
-  state.selected = process ? { pid: process.pid, startTicks: process.startTicks, name: process.name } : null;
+function setSelection(processes) {
+  state.selection = new Map(processes.map((process) => [selectionKey(process), true]));
+}
+
+function toggleSelection(process) {
+  const key = selectionKey(process);
+  if (state.selection.has(key)) state.selection.delete(key);
+  else state.selection.set(key, true);
+}
+
+function selectProcess(process, { toggle = false, range = false } = {}) {
+  if (!process) return;
+  const visible = visibleProcesses();
+  if (range && state.selectionAnchor) {
+    const from = visible.findIndex((candidate) => selectionKey(candidate) === selectionKey(state.selectionAnchor));
+    const to = visible.findIndex((candidate) => selectionKey(candidate) === selectionKey(process));
+    if (from !== -1 && to !== -1) {
+      const [start, end] = from < to ? [from, to] : [to, from];
+      setSelection(visible.slice(start, end + 1));
+      render();
+      return;
+    }
+  }
+  if (toggle) toggleSelection(process);
+  else setSelection([process]);
+  if (!toggle) state.selectionAnchor = process;
   ui.inspectorNote.textContent = "";
   ui.inspectorNote.className = "inspector-note";
   render();
@@ -556,7 +633,25 @@ ui.rows.addEventListener("click", (event) => {
   const process = state.snapshot.processes.find(
     (candidate) => candidate.pid === Number(row.dataset.pid) && candidate.startTicks === Number(row.dataset.startTicks),
   );
-  selectProcess(process);
+  if (!process) return;
+  if (event.target.closest(".row-check")) {
+    toggleSelection(process);
+    state.selectionAnchor = process;
+    render();
+    return;
+  }
+  selectProcess(process, { toggle: event.ctrlKey || event.metaKey, range: event.shiftKey });
+});
+
+ui.selectVisible.addEventListener("change", () => {
+  if (!state.snapshot) return;
+  const visible = visibleProcesses();
+  if (ui.selectVisible.checked) {
+    for (const process of visible) state.selection.set(selectionKey(process), true);
+  } else {
+    for (const process of visible) state.selection.delete(selectionKey(process));
+  }
+  render();
 });
 
 ui.tableWrap.addEventListener("keydown", (event) => {
@@ -564,7 +659,10 @@ ui.tableWrap.addEventListener("keydown", (event) => {
   event.preventDefault();
   const processes = visibleProcesses();
   if (processes.length === 0) return;
-  const currentIndex = processes.findIndex(isSelected);
+  const anchor = state.selectionAnchor && processes.find(
+    (candidate) => selectionKey(candidate) === selectionKey(state.selectionAnchor),
+  );
+  const currentIndex = anchor ? processes.indexOf(anchor) : -1;
   const step = event.key === "ArrowDown" ? 1 : -1;
   const nextIndex = currentIndex === -1 ? 0 : Math.min(processes.length - 1, Math.max(0, currentIndex + step));
   selectProcess(processes[nextIndex]);
@@ -599,28 +697,47 @@ document.addEventListener("keydown", (event) => {
 
 const signalCopy = {
   TERM: {
-    title: (name) => `Quit ${name}?`,
+    title: (count) => (count === 1 ? "Quit this process?" : `Quit ${count} processes?`),
     body: "Asks the process to exit cleanly. It can save its work first, or ignore the request.",
-    action: "Quit",
+    action: (count) => (count === 1 ? "Quit" : `Quit ${count}`),
     done: "Quit sent",
   },
   KILL: {
-    title: (name) => `Force quit ${name}?`,
+    title: (count) => (count === 1 ? "Force quit this process?" : `Force quit ${count} processes?`),
     body: "Stops the process immediately. Anything it hasn't saved is lost.",
-    action: "Force quit",
+    action: (count) => (count === 1 ? "Force quit" : `Force quit ${count}`),
     done: "Force quit sent",
   },
 };
 
+function targetLabel(process) {
+  return `${process.name} (${process.pid})`;
+}
+
 function openSignalDialog(signal) {
-  const process = selectedProcess();
-  if (!process || process.protected) return;
+  const targets = selectableProcesses();
+  if (targets.length === 0) return;
   const copy = signalCopy[signal];
-  state.pendingSignal = { signal, pid: process.pid, startTicks: process.startTicks, name: process.name };
-  ui.signalTitle.textContent = copy.title(process.name);
-  ui.signalBody.textContent = `${copy.body} pid ${process.pid}, running as ${process.user}.`;
-  ui.signalCommand.textContent = process.command;
-  ui.signalConfirm.textContent = copy.action;
+  state.pendingSignal = {
+    signal,
+    targets: targets.map((process) => ({ pid: process.pid, startTicks: process.startTicks })),
+    names: new Map(targets.map((process) => [process.pid, process.name])),
+    count: targets.length,
+  };
+  ui.signalTitle.textContent = copy.title(targets.length);
+  if (targets.length === 1) {
+    const process = targets[0];
+    ui.signalBody.textContent = `${copy.body} pid ${process.pid}, running as ${process.user}.`;
+    ui.signalCommand.textContent = process.command;
+  } else {
+    const protectedCount = selectedProcesses().length - targets.length;
+    const blockedNote = protectedCount > 0 ? ` ${protectedCount} protected process${protectedCount === 1 ? " is" : "es are"} skipped.` : "";
+    ui.signalBody.textContent = `${copy.body}${blockedNote}`;
+    const labels = targets.slice(0, 6).map(targetLabel);
+    if (targets.length > 6) labels.push(`… ${targets.length - 6} more`);
+    ui.signalCommand.textContent = labels.join("\n");
+  }
+  ui.signalConfirm.textContent = copy.action(targets.length);
   ui.signalConfirm.disabled = false;
   ui.signalMessage.textContent = "";
   ui.signalPasskeyHint.hidden = isFresh();
@@ -652,14 +769,26 @@ ui.signalConfirm.addEventListener("click", async () => {
   ui.signalConfirm.disabled = true;
   ui.signalMessage.textContent = "";
   try {
-    await withFreshPasskey(() =>
-      api(`/api/processes/${pending.pid}/signal`, {
+    const { results } = await withFreshPasskey(() =>
+      api("/api/processes/signal", {
         method: "POST",
-        body: { signal: pending.signal, startTicks: pending.startTicks },
+        body: { signal: pending.signal, targets: pending.targets },
       }),
     );
     ui.signalDialog.close();
-    ui.inspectorNote.textContent = `${signalCopy[pending.signal].done} to ${pending.name} (${pending.pid}).`;
+    const failed = results.filter((result) => result.error);
+    const sent = results.length - failed.length;
+    const parts = [];
+    if (sent > 0) parts.push(`${signalCopy[pending.signal].done} to ${sent} process${sent === 1 ? "" : "es"}.`);
+    if (failed.length > 0) {
+      const describe = (result) => {
+        const name = pending.names.get(result.pid);
+        const label = name ? `${name} (${result.pid})` : `pid ${result.pid}`;
+        return `${label}: ${result.error}`;
+      };
+      parts.push(`Failed: ${failed.map(describe).join("; ")}.`);
+    }
+    ui.inspectorNote.textContent = parts.join(" ");
     ui.inspectorNote.className = "inspector-note";
     refresh();
   } catch (error) {

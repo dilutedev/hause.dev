@@ -1,7 +1,7 @@
 # hause.dev
 
 - `site/`: the static landing page at https://hause.dev, served by Caddy from `/var/www/hause`.
-- `admin/`: the server admin panel at https://su.hause.dev. It's a single Go binary: a live process list where you can quit processes, with passkey-only sign-in.
+- `admin/`: the server admin panel at https://su.hause.dev. It's a single Go binary: a live process list where you can select one or more processes, see their executable path and listening ports, and quit them, with passkey-only sign-in.
 - `deploy/`: the systemd unit, sudo rule, Caddy site and install script.
 
 ## Deploy
@@ -46,6 +46,7 @@ The script builds the binary and does the rest:
 
 ## Safety rails
 
-- Quitting a process, approving a device and removing a device all require a passkey check from the last 10 minutes.
+- Quitting processes, approving a device and removing a device all require a passkey check from the last 10 minutes.
 - These processes are shown but can't be stopped from the panel: init, systemd services, sshd, tailscaled, caddy, dockerd/containerd, dbus, kernel threads and the panel itself.
+- Listening ports are read with `sudo ss` (the second and last sudo right, next to `kill`). Without it the Ports column stays empty.
 - Every sign-in, device change and signal sent goes to the journal (`journalctl -u hause-admin`).

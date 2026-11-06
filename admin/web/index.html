@@ -98,7 +98,7 @@
   </section>
 
   <div class="toolbar">
-    <input type="search" id="filter" placeholder="Filter by name, command, user or PID" aria-label="Filter processes" autocomplete="off" spellcheck="false">
+    <input type="search" id="filter" placeholder="Filter by name, command, user, PID or port" aria-label="Filter processes" autocomplete="off" spellcheck="false">
     <span class="count" id="process-count"></span>
   </div>
 
@@ -106,11 +106,13 @@
     <table>
       <thead>
         <tr>
+          <th scope="col" class="column-check"><input type="checkbox" id="select-visible" aria-label="Select all processes" title="Select all"></th>
           <th scope="col" data-sort="name"><button type="button">Process</button></th>
           <th scope="col" data-sort="pid" class="numeric"><button type="button">PID</button></th>
           <th scope="col" data-sort="user" class="column-user"><button type="button">User</button></th>
           <th scope="col" data-sort="cpu" class="numeric"><button type="button">CPU %</button></th>
           <th scope="col" data-sort="memory" class="numeric"><button type="button">Memory</button></th>
+          <th scope="col" class="numeric column-ports">Ports</th>
           <th scope="col" data-sort="threads" class="numeric column-threads"><button type="button">Threads</button></th>
           <th scope="col" data-sort="startedAt" class="column-started"><button type="button">Running for</button></th>
         </tr>
@@ -123,6 +125,7 @@
     <div class="inspector-text">
       <p class="inspector-title" id="inspector-title">Select a process to quit it.</p>
       <p class="inspector-command" id="inspector-command"></p>
+      <p class="inspector-command" id="inspector-path"></p>
       <p class="inspector-note" id="inspector-note"></p>
     </div>
     <div class="inspector-actions">

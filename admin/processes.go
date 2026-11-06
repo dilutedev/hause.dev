@@ -8,7 +8,9 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -53,6 +55,8 @@ type Process struct {
 	StartedAt   int64   `json:"startedAt"`
 	StartTicks  uint64  `json:"startTicks"`
 	Protected   string  `json:"protected,omitempty"`
+	Executable  string  `json:"executable,omitempty"`
+	Ports       []int   `json:"ports,omitempty"`
 	commandName string
 	userID      uint32
 	cpuTicks    uint64
@@ -147,6 +151,7 @@ func (monitor *ProcessMonitor) sample() {
 		return
 	}
 	currentCPUTicks := make(map[processKey]uint64, len(entries))
+	portsByPID := monitor.listeningPorts()
 	processes := make([]Process, 0, len(entries))
 	for _, entry := range entries {
 		processID, err := strconv.Atoi(entry.Name())
@@ -157,6 +162,7 @@ func (monitor *ProcessMonitor) sample() {
 		if err != nil {
 			continue
 		}
+		process.Ports = portsByPID[processID]
 		key := processKey{pid: process.PID, startTicks: process.StartTicks}
 		currentCPUTicks[key] = process.cpuTicks
 		if previousTicks, seen := monitor.previousCPUTicks[key]; seen && elapsedSeconds > 0 && process.cpuTicks >= previousTicks {
@@ -211,10 +217,14 @@ func (monitor *ProcessMonitor) readProcess(processID int) (Process, error) {
 	arguments := strings.Split(strings.TrimRight(string(commandLine), "\x00"), "\x00")
 	command := strings.TrimSpace(strings.Join(arguments, " "))
 	displayName := commandName
+	executable, _ := os.Readlink(procDirectory + "/exe")
+	if executable == "" && strings.ContainsRune(arguments[0], '/') {
+		executable = arguments[0]
+	}
 	if command == "" {
 		command = "[" + commandName + "]"
-	} else if executable := arguments[0]; !strings.ContainsRune(executable, ' ') {
-		if base := filepath.Base(executable); len(base) > len(commandName) && strings.HasPrefix(base, commandName) {
+	} else if invokedAs := arguments[0]; !strings.ContainsRune(invokedAs, ' ') {
+		if base := filepath.Base(invokedAs); len(base) > len(commandName) && strings.HasPrefix(base, commandName) {
 			displayName = base
 		}
 	}
@@ -227,6 +237,7 @@ func (monitor *ProcessMonitor) readProcess(processID int) (Process, error) {
 		ParentPID:   parentPID,
 		Name:        displayName,
 		Command:     command,
+		Executable:  executable,
 		State:       fields[0],
 		MemoryBytes: residentPages * monitor.pageSize,
 		Threads:     threads,
@@ -240,7 +251,54 @@ func (monitor *ProcessMonitor) readProcess(processID int) (Process, error) {
 	return process, nil
 }
 
+var ssPidPattern = regexp.MustCompile(`pid=(\d+)`)
+
+// listeningPorts maps process IDs to the TCP/UDP ports they listen on. It
+// shells out to `sudo ss` because an unprivileged process can't read the
+// sockets of other users; without the sudo rule it quietly returns nothing.
+func (monitor *ProcessMonitor) listeningPorts() map[int][]int {
+	output, err := exec.Command("sudo", "-n", "/usr/bin/ss", "-tulpnH").Output()
+	if err != nil {
+		return map[int][]int{}
+	}
+	return parseListeningPorts(string(output))
+}
+
+func parseListeningPorts(output string) map[int][]int {
+	portsByPID := map[int][]int{}
+	for _, line := range strings.Split(output, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 5 {
+			continue
+		}
+		localAddress := fields[4]
+		colon := strings.LastIndexByte(localAddress, ':')
+		if colon < 0 {
+			continue
+		}
+		port, err := strconv.Atoi(localAddress[colon+1:])
+		if err != nil || port <= 0 {
+			continue
+		}
+		for _, match := range ssPidPattern.FindAllStringSubmatch(line, -1) {
+			processID, err := strconv.Atoi(match[1])
+			if err != nil {
+				continue
+			}
+			if slices.Contains(portsByPID[processID], port) {
+				continue
+			}
+			portsByPID[processID] = append(portsByPID[processID], port)
+		}
+	}
+	for processID := range portsByPID {
+		slices.Sort(portsByPID[processID])
+	}
+	return portsByPID
+}
+
 func (monitor *ProcessMonitor) protectionReason(process Process) string {
+
 	switch {
 	case process.PID == 1:
 		return "Stopping init would bring the whole server down."

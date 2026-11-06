@@ -172,6 +172,15 @@ th[aria-sort] button { color: var(--bright); }
 th[aria-sort="descending"] button::after { content: " ↓"; }
 th[aria-sort="ascending"] button::after { content: " ↑"; }
 th.numeric, td.numeric { text-align: right; }
+th.column-check { width: 1%; }
+input[type="checkbox"] {
+  width: auto;
+  accent-color: var(--mid);
+  margin: 0;
+  vertical-align: middle;
+  cursor: pointer;
+}
+td.check { padding-right: 0; }
 
 td {
   padding: 0.32rem 0.75rem;
@@ -180,6 +189,7 @@ td {
 }
 td.name { max-width: 28rem; overflow: hidden; text-overflow: ellipsis; color: var(--glow); }
 td.user, td.started { color: var(--muted); }
+td.ports { color: var(--bright); }
 tbody tr { cursor: default; }
 tbody tr:hover { background: rgba(11, 58, 28, 0.35); }
 tbody tr.selected { background: var(--deep); box-shadow: inset 3px 0 0 var(--bright); }

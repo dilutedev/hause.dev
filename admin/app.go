@@ -8,7 +8,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -109,7 +108,7 @@ func (app *App) routes(staticFiles fs.FS) http.Handler {
 	mux.HandleFunc("GET /api/devices", app.requireSession(false, app.handleDeviceList))
 	mux.HandleFunc("DELETE /api/devices/{id}", app.requireSession(true, app.handleDeviceRemove))
 	mux.HandleFunc("GET /api/processes", app.requireSession(false, app.handleProcessList))
-	mux.HandleFunc("POST /api/processes/{pid}/signal", app.requireSession(true, app.handleProcessSignal))
+	mux.HandleFunc("POST /api/processes/signal", app.requireSession(true, app.handleProcessSignal))
 	return app.securityHeaders(app.sameOriginWrites(mux))
 }
 
@@ -562,15 +561,21 @@ func (app *App) handleProcessList(writer http.ResponseWriter, request *http.Requ
 	writeJSON(writer, http.StatusOK, app.monitor.snapshot())
 }
 
+type signalTarget struct {
+	PID        int    `json:"pid"`
+	StartTicks uint64 `json:"startTicks"`
+}
+
+type signalResult struct {
+	PID   int    `json:"pid"`
+	Name  string `json:"name,omitempty"`
+	Error string `json:"error,omitempty"`
+}
+
 func (app *App) handleProcessSignal(writer http.ResponseWriter, request *http.Request, _ string, current session) {
-	processID, err := strconv.Atoi(request.PathValue("pid"))
-	if err != nil || processID <= 1 {
-		writeError(writer, http.StatusBadRequest, "", "Invalid process ID.")
-		return
-	}
 	var body struct {
-		Signal     string `json:"signal"`
-		StartTicks uint64 `json:"startTicks"`
+		Signal  string         `json:"signal"`
+		Targets []signalTarget `json:"targets"`
 	}
 	if !decodeJSON(writer, request, &body) {
 		return
@@ -579,22 +584,37 @@ func (app *App) handleProcessSignal(writer http.ResponseWriter, request *http.Re
 		writeError(writer, http.StatusBadRequest, "", "Signal must be TERM or KILL.")
 		return
 	}
-	target, err := app.monitor.sendSignal(processID, body.StartTicks, body.Signal)
-	var protectedErr protectedProcessError
-	switch {
-	case errors.Is(err, errProcessGone):
-		writeError(writer, http.StatusGone, "", err.Error())
-		return
-	case errors.As(err, &protectedErr):
-		writeError(writer, http.StatusForbidden, "", err.Error())
-		return
-	case err != nil:
-		log.Printf("signal %s to %d failed: %v", body.Signal, processID, err)
-		writeError(writer, http.StatusInternalServerError, "", err.Error())
+	if len(body.Targets) == 0 || len(body.Targets) > 200 {
+		writeError(writer, http.StatusBadRequest, "", "Signal needs between 1 and 200 processes.")
 		return
 	}
-	log.Printf("SIG%s sent to %d (%s) by device %s", body.Signal, processID, target.Name, current.deviceID)
-	writeJSON(writer, http.StatusOK, map[string]any{"pid": processID, "signal": body.Signal})
+	results := make([]signalResult, 0, len(body.Targets))
+	for _, target := range body.Targets {
+		result := signalResult{PID: target.PID}
+		if target.PID <= 1 {
+			result.Error = "Invalid process ID."
+			results = append(results, result)
+			continue
+		}
+		process, err := app.monitor.sendSignal(target.PID, target.StartTicks, body.Signal)
+		if process.Name != "" {
+			result.Name = process.Name
+		}
+		var protectedErr protectedProcessError
+		switch {
+		case errors.Is(err, errProcessGone):
+			result.Error = errProcessGone.Error()
+		case errors.As(err, &protectedErr):
+			result.Error = err.Error()
+		case err != nil:
+			log.Printf("signal %s to %d failed: %v", body.Signal, target.PID, err)
+			result.Error = err.Error()
+		default:
+			log.Printf("SIG%s sent to %d (%s) by device %s", body.Signal, target.PID, process.Name, current.deviceID)
+		}
+		results = append(results, result)
+	}
+	writeJSON(writer, http.StatusOK, map[string]any{"signal": body.Signal, "results": results})
 }
 
 func (app *App) purgeExpiredLoop() {
