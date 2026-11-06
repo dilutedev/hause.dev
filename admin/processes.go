@@ -64,6 +64,11 @@ type SystemSummary struct {
 	Cores         int        `json:"cores"`
 	MemoryTotal   uint64     `json:"memoryTotal"`
 	MemoryUsed    uint64     `json:"memoryUsed"`
+	SwapTotal     uint64     `json:"swapTotal"`
+	SwapUsed      uint64     `json:"swapUsed"`
+	DiskTotal     uint64     `json:"diskTotal"`
+	DiskUsed      uint64     `json:"diskUsed"`
+	DiskAvailable uint64     `json:"diskAvailable"`
 	Load          [3]float64 `json:"load"`
 	UptimeSeconds int64      `json:"uptime"`
 	SampledAt     int64      `json:"sampledAt"`
@@ -286,7 +291,7 @@ func (monitor *ProcessMonitor) readSystemSummary(now time.Time) SystemSummary {
 	}
 
 	if memoryContents, err := os.ReadFile("/proc/meminfo"); err == nil {
-		var availableKilobytes uint64
+		var availableKilobytes, swapFreeKilobytes uint64
 		for _, line := range strings.Split(string(memoryContents), "\n") {
 			fields := strings.Fields(line)
 			if len(fields) < 2 {
@@ -298,9 +303,22 @@ func (monitor *ProcessMonitor) readSystemSummary(now time.Time) SystemSummary {
 				summary.MemoryTotal = value * 1024
 			case "MemAvailable:":
 				availableKilobytes = value
+			case "SwapTotal:":
+				summary.SwapTotal = value * 1024
+			case "SwapFree:":
+				swapFreeKilobytes = value
 			}
 		}
 		summary.MemoryUsed = summary.MemoryTotal - availableKilobytes*1024
+		summary.SwapUsed = summary.SwapTotal - swapFreeKilobytes*1024
+	}
+
+	var filesystemStats syscall.Statfs_t
+	if err := syscall.Statfs("/", &filesystemStats); err == nil {
+		blockSize := uint64(filesystemStats.Bsize)
+		summary.DiskTotal = filesystemStats.Blocks * blockSize
+		summary.DiskUsed = (filesystemStats.Blocks - filesystemStats.Bfree) * blockSize
+		summary.DiskAvailable = filesystemStats.Bavail * blockSize
 	}
 
 	if loadContents, err := os.ReadFile("/proc/loadavg"); err == nil {

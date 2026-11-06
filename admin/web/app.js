@@ -14,6 +14,10 @@ const ui = {
   cpuValue: byId("cpu-value"),
   memoryMeter: byId("memory-meter"),
   memoryValue: byId("memory-value"),
+  swapMeter: byId("swap-meter"),
+  swapValue: byId("swap-value"),
+  diskMeter: byId("disk-meter"),
+  diskValue: byId("disk-value"),
   loadValue: byId("load-value"),
   uptimeValue: byId("uptime-value"),
   filter: byId("filter"),
@@ -392,6 +396,18 @@ const formatters = {
   },
 };
 
+function renderMeter(meter, used, total) {
+  const usedFraction = total ? used / total : 0;
+  const filledCells = Math.round(usedFraction * meterLength);
+  const filled = document.createElement("span");
+  filled.className = "on";
+  filled.textContent = "█".repeat(filledCells);
+  const empty = document.createElement("span");
+  empty.className = "off";
+  empty.textContent = "█".repeat(meterLength - filledCells);
+  meter.replaceChildren(filled, empty);
+}
+
 function renderVitals(system) {
   ui.hostname.textContent = system.hostname || "hause";
   const sparkline = state.cpuHistory
@@ -400,16 +416,16 @@ function renderVitals(system) {
   ui.cpuSpark.textContent = sparkline.padStart(sparkLength, " ");
   ui.cpuValue.textContent = `${formatters.percent(system.cpu)}% of ${system.cores} threads`;
 
-  const usedFraction = system.memoryTotal ? system.memoryUsed / system.memoryTotal : 0;
-  const filledCells = Math.round(usedFraction * meterLength);
-  const filled = document.createElement("span");
-  filled.className = "on";
-  filled.textContent = "█".repeat(filledCells);
-  const empty = document.createElement("span");
-  empty.className = "off";
-  empty.textContent = "█".repeat(meterLength - filledCells);
-  ui.memoryMeter.replaceChildren(filled, empty);
+  renderMeter(ui.memoryMeter, system.memoryUsed, system.memoryTotal);
   ui.memoryValue.textContent = `${formatters.bytes(system.memoryUsed)} of ${formatters.bytes(system.memoryTotal)}`;
+
+  renderMeter(ui.swapMeter, system.swapUsed, system.swapTotal);
+  ui.swapValue.textContent = system.swapTotal
+    ? `${formatters.bytes(system.swapUsed)} of ${formatters.bytes(system.swapTotal)}`
+    : "none";
+
+  renderMeter(ui.diskMeter, system.diskUsed, system.diskTotal);
+  ui.diskValue.textContent = `${formatters.bytes(system.diskUsed)} of ${formatters.bytes(system.diskTotal)}, ${formatters.bytes(system.diskAvailable)} free`;
 
   ui.loadValue.textContent = system.load.map((value) => value.toFixed(2)).join("  ");
   ui.uptimeValue.textContent = formatters.duration(system.uptime);
