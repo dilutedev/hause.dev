@@ -1,0 +1,1 @@
+hause-admin ALL=(root) NOPASSWD: /usr/bin/kill

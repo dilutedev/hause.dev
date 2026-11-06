@@ -1,0 +1,24 @@
+[Unit]
+Description=su.hause.dev admin panel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=hause-admin
+Group=hause-admin
+ExecStart=/usr/local/bin/hause-admin -listen 127.0.0.1:8740 -data /var/lib/hause-admin -origin https://su.hause.dev
+StateDirectory=hause-admin
+StateDirectoryMode=0700
+Restart=on-failure
+RestartSec=3
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target

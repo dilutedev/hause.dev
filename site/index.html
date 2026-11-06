@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hause</title>
+<meta name="description" content="dilutedev's home server. Snipeseats, Aussiepunt and Tabs are built here.">
+<meta name="theme-color" content="#010702">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://hause.dev/">
+<meta property="og:title" content="hause">
+<meta property="og:description" content="dilutedev's home server. Snipeseats, Aussiepunt and Tabs are built here.">
+<meta property="og:image" content="https://hause.dev/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The word hause formed from falling green code">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@300..800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --void: #010702;
+  --deep: #0b3a1c;
+  --mid: #2fae5f;
+  --bright: #8dffb4;
+  --glow: #eafff0;
+  --text: #a6e6bd;
+}
+* { box-sizing: border-box; margin: 0; }
+[hidden] { display: none !important; }
+html {
+  background: var(--void);
+  color: var(--text);
+  font-family: "Martian Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-weight: 300;
+  font-size: 15px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+body { position: relative; min-height: 100vh; min-height: 100dvh; }
+.layer { position: absolute; top: 0; left: 0; display: block; pointer-events: none; }
+main {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2.75rem;
+  padding: clamp(1.5rem, 7vw, 7rem);
+}
+h1 {
+  font-weight: 800;
+  font-size: clamp(5.5rem, 21vw, 17rem);
+  line-height: 1;
+  color: var(--bright);
+  user-select: none;
+}
+.js h1 { color: transparent; }
+.intro { max-width: 44ch; font-size: 1.05rem; }
+.projects { max-width: 72ch; }
+.projects h2 { font-size: 0.82rem; font-weight: 400; color: var(--mid); margin-bottom: 1rem; }
+.projects dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.85rem 2.25rem;
+  font-size: 0.85rem;
+}
+.projects dt a { color: var(--glow); font-weight: 500; text-decoration: none; border-bottom: 1px solid var(--deep); }
+.projects dt a:hover { border-bottom-color: var(--bright); }
+.projects dd { color: var(--text); max-width: 52ch; }
+.hello { min-height: 3.5rem; display: flex; align-items: center; }
+.site-nav {
+  position: absolute;
+  z-index: 2;
+  top: clamp(1.25rem, 3.5vw, 2.5rem);
+  right: clamp(1.5rem, 7vw, 7rem);
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  font-size: 0.85rem;
+}
+.site-nav a { color: var(--text); text-decoration: none; border-bottom: 1px solid var(--deep); }
+.site-nav a:hover { color: var(--glow); border-bottom-color: var(--bright); }
+.site-nav .terminal-toggle {
+  font-size: 0.95rem;
+  color: var(--mid);
+  background: transparent;
+  padding: 0.2rem 0.55rem;
+  box-shadow: inset 0 0 0 1px var(--deep);
+}
+.site-nav .terminal-toggle:hover { color: var(--glow); background: var(--deep); }
+.terminal {
+  width: min(760px, calc(100% - 1.5rem));
+  height: min(28rem, 72vh);
+  max-width: none;
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  color: var(--text);
+  background: var(--void);
+  box-shadow: inset 0 0 0 1px var(--mid), 0 0 64px rgba(47, 174, 95, 0.22);
+  border-radius: 3px;
+  font-size: 0.85rem;
+}
+.terminal[open] { display: flex; flex-direction: column; animation: terminal-open 0.16s ease-out; }
+.terminal::backdrop { background: rgba(1, 7, 2, 0.72); }
+@keyframes terminal-open { from { opacity: 0; transform: scale(0.97); } }
+.terminal-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.55rem 0.9rem;
+  color: var(--mid);
+  box-shadow: inset 0 -1px 0 var(--deep);
+}
+.terminal-bar button { font-size: 0.8rem; padding: 0.15rem 0.5rem; color: var(--mid); background: transparent; }
+.terminal-bar button:hover { color: var(--glow); background: var(--deep); }
+.terminal-output { flex: 1; overflow-y: auto; padding: 0.9rem; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); }
+.terminal-output .echo { color: var(--glow); }
+.terminal-output .muted { color: var(--mid); }
+.terminal-output a { color: var(--bright); }
+.terminal-form { display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 0.9rem 0.9rem; }
+.terminal-prompt { color: var(--bright); white-space: nowrap; }
+.terminal-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: max(16px, 1em);
+  color: var(--glow);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  caret-color: var(--bright);
+}
+@media (prefers-reduced-motion: reduce) { .terminal[open] { animation: none; } }
+button {
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--void);
+  background: var(--bright);
+  border: 0;
+  border-radius: 2px;
+  padding: 0.9rem 1.5rem;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+button:hover { background: var(--glow); }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--glow); outline-offset: 5px; }
+.hello-output { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.75rem; }
+.email {
+  font-size: clamp(1.15rem, 2.8vw, 1.7rem);
+  font-weight: 500;
+  color: var(--glow);
+  text-decoration: none;
+  border-bottom: 1px solid var(--mid);
+  white-space: nowrap;
+}
+.email:hover { border-bottom-color: var(--glow); }
+.copy { background: transparent; color: var(--bright); box-shadow: inset 0 0 0 1px var(--mid); }
+.copy:hover { background: var(--deep); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (max-width: 520px) {
+  html { font-size: 14px; }
+  .projects dl { grid-template-columns: 1fr; gap: 0.2rem; }
+  .projects dd { margin-bottom: 0.9rem; }
+}
+</style>
+</head>
+<body>
+<canvas class="layer" id="rain" aria-hidden="true"></canvas>
+<canvas class="layer" id="word" aria-hidden="true"></canvas>
+<nav class="site-nav quiet" aria-label="Elsewhere">
+  <a href="https://github.com/dilutedev" target="_blank" rel="noopener">GitHub</a>
+  <a href="https://dev.to/dilutedev" target="_blank" rel="noopener">dev.to</a>
+  <button type="button" class="terminal-toggle" id="terminal-toggle" aria-label="Open terminal" title="Open terminal (~)">~</button>
+</nav>
+<main>
+  <h1 id="wordmark">hause</h1>
+  <p class="intro quiet">dilutedev's home server. Code gets built here, agents work here, and side projects go live from here.</p>
+  <section class="projects quiet" aria-labelledby="projects-heading">
+    <h2 id="projects-heading">Now building</h2>
+    <dl>
+      <dt><a href="https://snipeseats.com" target="_blank" rel="noopener">snipeseats.com</a></dt>
+      <dd>Books hard-to-get restaurant tables the moment they open. Runs on reverse-engineered Resy, Tock and OpenTable.</dd>
+      <dt><a href="https://aussiepunt.au" target="_blank" rel="noopener">aussiepunt.au</a></dt>
+      <dd>Finds +EV bets, arbs and middles across 13 reverse-engineered Australian bookmakers, in one system.</dd>
+      <dt><a href="https://usetabs.app" target="_blank" rel="noopener">usetabs.app</a></dt>
+      <dd>Business management software on steroids.</dd>
+    </dl>
+  </section>
+  <div class="hello quiet">
+    <button type="button" id="say-hello">Say hello</button>
+    <div class="hello-output" id="hello-output" hidden>
+      <a class="email" id="email-link" href="#"></a>
+      <button type="button" class="copy" id="copy-email">Copy address</button>
+    </div>
+    <span class="visually-hidden" id="hello-status" aria-live="polite"></span>
+  </div>
+</main>
+<dialog class="terminal" id="terminal" aria-label="Terminal">
+  <div class="terminal-bar">
+    <span>dilutedev@hause</span>
+    <button type="button" id="terminal-close" aria-label="Close terminal">esc</button>
+  </div>
+  <div class="terminal-output" id="terminal-output" aria-live="polite"></div>
+  <form class="terminal-form" id="terminal-form" autocomplete="off">
+    <label class="terminal-prompt" for="terminal-input">~ $</label>
+    <input class="terminal-input" id="terminal-input" type="text" spellcheck="false" autocapitalize="off" autocorrect="off" enterkeyhint="send">
+  </form>
+</dialog>
+<script>
+document.documentElement.classList.add("js");
+
+const glyphs = "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789{}[]<>/=+*#$%&;:";
+const randomGlyph = () => glyphs[Math.floor(Math.random() * glyphs.length)];
+const prefersReducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const rainCanvas = document.getElementById("rain");
+const wordCanvas = document.getElementById("word");
+const rainContext = rainCanvas.getContext("2d");
+const wordContext = wordCanvas.getContext("2d");
+const wordmark = document.getElementById("wordmark");
+
+const rainShades = Array.from({ length: 12 }, (_, step) => `rgba(47, 174, 95, ${((step + 1) / 12).toFixed(3)})`);
+const headColor = "#eafff0";
+const lockedColor = "#8dffb4";
+const frameInterval = 1000 / 30;
+
+let pageWidth = 0;
+let pageHeight = 0;
+let cellSize = 16;
+let columns = 0;
+let rows = 0;
+let wordCellSize = 10;
+let wordColumns = 0;
+let wordRows = 0;
+let unlockedWordCells = [];
+let animationStartTime = 0;
+let cellGlyphs = [];
+let cellBrightness = new Float32Array(0);
+let wordMask = new Uint8Array(0);
+let wordLocked = new Uint8Array(0);
+let lockedGlyphs = [];
+let quietMask = new Uint8Array(0);
+let drops = [];
+let wordNeedsRedraw = true;
+let hasBuiltOnce = false;
+let lastFrameTime = 0;
+let framesSinceWordDraw = 0;
+
+function sizeCanvas(canvas, context, glyphSize) {
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.floor(pageWidth * pixelRatio);
+  canvas.height = Math.floor(pageHeight * pixelRatio);
+  canvas.style.width = `${pageWidth}px`;
+  canvas.style.height = `${pageHeight}px`;
+  context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  context.font = `600 ${glyphSize}px "Martian Mono", ui-monospace, monospace`;
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+}
+
+function buildWordMask() {
+  const offscreen = document.createElement("canvas");
+  offscreen.width = pageWidth;
+  offscreen.height = pageHeight;
+  const offscreenContext = offscreen.getContext("2d", { willReadFrequently: true });
+  const headingStyle = getComputedStyle(wordmark);
+  const headingRect = wordmark.getBoundingClientRect();
+  offscreenContext.font = `800 ${headingStyle.fontSize} "Martian Mono", ui-monospace, monospace`;
+  offscreenContext.textBaseline = "middle";
+  offscreenContext.fillStyle = "#fff";
+  offscreenContext.fillText(wordmark.textContent, headingRect.left + window.scrollX, headingRect.top + window.scrollY + headingRect.height / 2);
+  const pixels = offscreenContext.getImageData(0, 0, pageWidth, pageHeight).data;
+  const mask = new Uint8Array(wordColumns * wordRows);
+  for (let row = 0; row < wordRows; row++) {
+    const sampleY = Math.floor(row * wordCellSize + wordCellSize / 2);
+    if (sampleY >= pageHeight) continue;
+    for (let column = 0; column < wordColumns; column++) {
+      const sampleX = Math.floor(column * wordCellSize + wordCellSize / 2);
+      if (sampleX >= pageWidth) continue;
+      if (pixels[(sampleY * pageWidth + sampleX) * 4 + 3] > 110) mask[row * wordColumns + column] = 1;
+    }
+  }
+  return mask;
+}
+
+function buildQuietMask() {
+  const mask = new Uint8Array(columns * rows);
+  document.querySelectorAll(".quiet").forEach((element) => {
+    const rect = element.getBoundingClientRect();
+    const firstColumn = Math.max(0, Math.floor((rect.left + window.scrollX) / cellSize) - 1);
+    const lastColumn = Math.min(columns - 1, Math.ceil((rect.right + window.scrollX) / cellSize) + 1);
+    const firstRow = Math.max(0, Math.floor((rect.top + window.scrollY) / cellSize) - 1);
+    const lastRow = Math.min(rows - 1, Math.ceil((rect.bottom + window.scrollY) / cellSize) + 1);
+    for (let row = firstRow; row <= lastRow; row++) {
+      for (let column = firstColumn; column <= lastColumn; column++) mask[row * columns + column] = 1;
+    }
+  });
+  return mask;
+}
+
+function newDrop(startAbove) {
+  return {
+    y: startAbove ? -Math.random() * rows * 0.45 : Math.random() * rows,
+    speed: 0.3 + Math.random() * 0.55,
+    lastRow: -1,
+    trail: 8 + Math.random() * 24,
+  };
+}
+
+function build() {
+  pageWidth = document.documentElement.clientWidth;
+  pageHeight = Math.max(document.documentElement.scrollHeight, window.innerHeight);
+  cellSize = pageWidth < 520 ? 12 : 16;
+  wordCellSize = pageWidth < 520 ? 6 : 10;
+  columns = Math.ceil(pageWidth / cellSize);
+  rows = Math.ceil(pageHeight / cellSize);
+  wordColumns = Math.ceil(pageWidth / wordCellSize);
+  wordRows = Math.ceil(pageHeight / wordCellSize);
+  sizeCanvas(rainCanvas, rainContext, cellSize - 3);
+  sizeCanvas(wordCanvas, wordContext, wordCellSize);
+  cellGlyphs = Array.from({ length: columns * rows }, randomGlyph);
+  cellBrightness = new Float32Array(columns * rows);
+  wordMask = buildWordMask();
+  quietMask = buildQuietMask();
+  wordLocked = new Uint8Array(wordColumns * wordRows);
+  lockedGlyphs = Array.from({ length: wordColumns * wordRows }, randomGlyph);
+  drops = Array.from({ length: columns }, () => newDrop(!hasBuiltOnce));
+  if (prefersReducedMotion || hasBuiltOnce) wordLocked.set(wordMask);
+  unlockedWordCells = [];
+  wordMask.forEach((inWord, index) => { if (inWord && !wordLocked[index]) unlockedWordCells.push(index); });
+  wordNeedsRedraw = true;
+  hasBuiltOnce = true;
+}
+
+function lockWordCellsUnder(column, row) {
+  const firstWordColumn = Math.floor((column * cellSize) / wordCellSize);
+  const lastWordColumn = Math.min(wordColumns - 1, Math.floor(((column + 1) * cellSize - 1) / wordCellSize));
+  const firstWordRow = Math.floor((row * cellSize) / wordCellSize);
+  const lastWordRow = Math.min(wordRows - 1, Math.floor(((row + 1) * cellSize - 1) / wordCellSize));
+  for (let wordRow = firstWordRow; wordRow <= lastWordRow; wordRow++) {
+    for (let wordColumn = firstWordColumn; wordColumn <= lastWordColumn; wordColumn++) {
+      const wordIndex = wordRow * wordColumns + wordColumn;
+      if (wordMask[wordIndex] && !wordLocked[wordIndex]) {
+        wordLocked[wordIndex] = 1;
+        wordNeedsRedraw = true;
+      }
+    }
+  }
+}
+
+function finishWordAfterDelay(timestamp) {
+  if (!animationStartTime) animationStartTime = timestamp;
+  if (timestamp - animationStartTime < 4000 || unlockedWordCells.length === 0) return;
+  unlockedWordCells = unlockedWordCells.filter((index) => !wordLocked[index]);
+  const batch = Math.max(4, Math.ceil(unlockedWordCells.length * 0.12));
+  for (let count = 0; count < batch && unlockedWordCells.length; count++) {
+    const pick = Math.floor(Math.random() * unlockedWordCells.length);
+    wordLocked[unlockedWordCells[pick]] = 1;
+    unlockedWordCells.splice(pick, 1);
+  }
+  wordNeedsRedraw = true;
+}
+
+function advanceRain() {
+  for (let column = 0; column < columns; column++) {
+    const drop = drops[column];
+    drop.y += drop.speed;
+    const row = Math.floor(drop.y);
+    if (row !== drop.lastRow && row >= 0 && row < rows) {
+      const index = row * columns + column;
+      cellGlyphs[index] = randomGlyph();
+      cellBrightness[index] = 1;
+      lockWordCellsUnder(column, row);
+      drop.lastRow = row;
+    }
+    if (drop.y > rows + drop.trail) drops[column] = newDrop(true);
+  }
+  for (let index = 0; index < cellBrightness.length; index++) {
+    if (cellBrightness[index] > 0.02) {
+      cellBrightness[index] *= 0.925;
+      if (Math.random() < 0.015) cellGlyphs[index] = randomGlyph();
+    }
+  }
+}
+
+function drawRain() {
+  rainContext.clearRect(0, 0, pageWidth, pageHeight);
+  for (let row = 0; row < rows; row++) {
+    for (let column = 0; column < columns; column++) {
+      const index = row * columns + column;
+      const brightness = cellBrightness[index];
+      if (brightness < 0.04) continue;
+      const isQuiet = quietMask[index] === 1;
+      if (brightness === 1 && !isQuiet) {
+        rainContext.fillStyle = headColor;
+      } else {
+        const level = isQuiet ? Math.min(brightness, 0.13) : brightness;
+        rainContext.fillStyle = rainShades[Math.min(11, Math.floor(level * 12))];
+      }
+      rainContext.fillText(cellGlyphs[index], column * cellSize + cellSize / 2, row * cellSize + cellSize / 2);
+    }
+  }
+}
+
+function drawWord() {
+  wordContext.clearRect(0, 0, pageWidth, pageHeight);
+  wordContext.shadowColor = "rgba(141, 255, 180, 0.6)";
+  wordContext.shadowBlur = wordCellSize * 0.9;
+  for (let index = 0; index < wordLocked.length; index++) {
+    if (!wordLocked[index]) continue;
+    if (!prefersReducedMotion && Math.random() < 0.03) lockedGlyphs[index] = randomGlyph();
+    wordContext.globalAlpha = prefersReducedMotion ? 1 : 0.78 + Math.random() * 0.22;
+    wordContext.fillStyle = lockedColor;
+    const column = index % wordColumns;
+    const row = Math.floor(index / wordColumns);
+    wordContext.fillText(lockedGlyphs[index], column * wordCellSize + wordCellSize / 2, row * wordCellSize + wordCellSize / 2);
+  }
+  wordContext.globalAlpha = 1;
+  wordNeedsRedraw = false;
+}
+
+function drawStaticField() {
+  for (let index = 0; index < cellBrightness.length; index++) {
+    if (Math.random() < 0.18) cellBrightness[index] = 0.05 + Math.random() * 0.3;
+  }
+  drawRain();
+  drawWord();
+}
+
+function animate(timestamp) {
+  if (timestamp - lastFrameTime >= frameInterval) {
+    lastFrameTime = timestamp;
+    advanceRain();
+    finishWordAfterDelay(timestamp);
+    drawRain();
+    framesSinceWordDraw++;
+    if (wordNeedsRedraw || framesSinceWordDraw >= 4) {
+      drawWord();
+      framesSinceWordDraw = 0;
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
+let resizeTimer = 0;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    build();
+    if (prefersReducedMotion) drawStaticField();
+  }, 200);
+});
+
+const fontReady = Promise.race([
+  document.fonts.load('800 100px "Martian Mono"'),
+  new Promise((resolve) => setTimeout(resolve, 1500)),
+]);
+fontReady.then(() => {
+  build();
+  if (prefersReducedMotion) drawStaticField();
+  else requestAnimationFrame(animate);
+});
+
+const emailAddress = ["stdin", "hause.dev"].join("@");
+const sayHelloButton = document.getElementById("say-hello");
+const helloOutput = document.getElementById("hello-output");
+const emailLink = document.getElementById("email-link");
+const copyButton = document.getElementById("copy-email");
+const helloStatus = document.getElementById("hello-status");
+
+function decodeInto(element, target) {
+  if (prefersReducedMotion) {
+    element.textContent = target;
+    return;
+  }
+  const startTime = performance.now();
+  const duration = 750;
+  function frame(now) {
+    const progress = (now - startTime) / duration;
+    let output = "";
+    for (let position = 0; position < target.length; position++) {
+      const resolvesAt = (position / target.length) * 0.75 + 0.2;
+      output += progress >= resolvesAt ? target[position] : randomGlyph();
+    }
+    element.textContent = output;
+    if (progress < 1) requestAnimationFrame(frame);
+    else element.textContent = target;
+  }
+  requestAnimationFrame(frame);
+}
+
+sayHelloButton.addEventListener("click", () => {
+  emailLink.href = `mailto:${emailAddress}`;
+  emailLink.setAttribute("aria-label", `Email ${emailAddress}`);
+  sayHelloButton.hidden = true;
+  helloOutput.hidden = false;
+  decodeInto(emailLink, emailAddress);
+  helloStatus.textContent = `Email address: ${emailAddress}`;
+  emailLink.focus();
+});
+
+copyButton.addEventListener("click", () => {
+  navigator.clipboard.writeText(emailAddress).then(
+    () => {
+      copyButton.textContent = "Copied";
+      helloStatus.textContent = "Copied to clipboard";
+      setTimeout(() => { copyButton.textContent = "Copy address"; }, 2000);
+    },
+    () => {
+      copyButton.textContent = "Copy failed, select the address instead";
+    }
+  );
+});
+
+const terminal = document.getElementById("terminal");
+const terminalOutput = document.getElementById("terminal-output");
+const terminalForm = document.getElementById("terminal-form");
+const terminalInput = document.getElementById("terminal-input");
+const terminalToggle = document.getElementById("terminal-toggle");
+const terminalClose = document.getElementById("terminal-close");
+
+const projects = [
+  { name: "snipeseats", url: "https://snipeseats.com", summary: "restaurant reservations, booked the moment they open" },
+  { name: "aussiepunt", url: "https://aussiepunt.au", summary: "+EV bets, arbs and middles across 13 bookmakers" },
+  { name: "usetabs", url: "https://usetabs.app", summary: "business management software on steroids" },
+];
+const profiles = {
+  github: "https://github.com/dilutedev",
+  devto: "https://dev.to/dilutedev",
+};
+
+const commandHistory = [];
+let historyPosition = 0;
+let terminalOpenedBefore = false;
+
+function printLine(text, className) {
+  const line = document.createElement("div");
+  if (className) line.className = className;
+  line.textContent = text;
+  terminalOutput.append(line);
+  return line;
+}
+
+function printLink(prefix, label, url) {
+  const line = document.createElement("div");
+  line.append(prefix);
+  const link = document.createElement("a");
+  link.href = url;
+  link.textContent = label;
+  if (!url.startsWith("mailto:")) {
+    link.target = "_blank";
+    link.rel = "noopener";
+  }
+  line.append(link);
+  terminalOutput.append(line);
+}
+
+function openInNewTab(url) {
+  window.open(url, "_blank", "noopener");
+}
+
+const commands = {
+  help() {
+    printLine([
+      "help            list commands",
+      "whoami          who runs this machine",
+      "ls              list projects",
+      "open <project>  open a project in a new tab",
+      "hello           get the email address",
+      "github, devto   open a profile",
+      "clear           clear the screen",
+      "exit            close the terminal",
+    ].join("\n"));
+  },
+  whoami() {
+    printLine("dilutedev. Builds bots, scrapers and the products that run on them.");
+  },
+  ls() {
+    projects.forEach((project) => printLine(`${project.name.padEnd(12)}${project.summary}`));
+  },
+  open(argument) {
+    if (!argument) {
+      printLine("usage: open <project>. Try: open snipeseats", "muted");
+      return;
+    }
+    const match = projects.find((project) => project.name.startsWith(argument.toLowerCase()));
+    if (!match) {
+      printLine(`open: no project called ${argument}. Run ls to see them.`, "muted");
+      return;
+    }
+    printLink("opening ", match.url.replace("https://", ""), match.url);
+    openInNewTab(match.url);
+  },
+  hello() {
+    printLink("", emailAddress, `mailto:${emailAddress}`);
+    printLine(`or, from your own terminal: echo "hi" | mail ${emailAddress}`, "muted");
+  },
+  github() {
+    printLink("opening ", "github.com/dilutedev", profiles.github);
+    openInNewTab(profiles.github);
+  },
+  devto() {
+    printLink("opening ", "dev.to/dilutedev", profiles.devto);
+    openInNewTab(profiles.devto);
+  },
+  clear() {
+    terminalOutput.replaceChildren();
+  },
+  exit() {
+    closeTerminal();
+  },
+};
+
+function runCommand(rawInput) {
+  const input = rawInput.trim();
+  printLine(`~ $ ${input}`, "echo");
+  if (!input) return;
+  commandHistory.push(input);
+  historyPosition = commandHistory.length;
+  const [name, ...rest] = input.split(/\s+/);
+  const command = name.toLowerCase();
+  if (command === "sudo") {
+    printLine("dilutedev is not in the sudoers file. This incident will be reported.", "muted");
+  } else if (Object.hasOwn(commands, command)) {
+    commands[command](rest.join(" "));
+  } else {
+    printLine(`command not found: ${name}. Type help to see what works.`, "muted");
+  }
+  terminalOutput.scrollTop = terminalOutput.scrollHeight;
+}
+
+function completeInput() {
+  const value = terminalInput.value;
+  const parts = value.split(/\s+/);
+  const candidates = parts.length > 1 && parts[0] === "open"
+    ? projects.map((project) => `open ${project.name}`)
+    : Object.keys(commands);
+  const matches = candidates.filter((candidate) => candidate.startsWith(value));
+  if (matches.length === 1) terminalInput.value = matches[0] + (parts.length > 1 ? "" : " ");
+  else if (matches.length > 1) printLine(matches.join("  "), "muted");
+}
+
+function openTerminal() {
+  terminal.showModal();
+  terminalToggle.setAttribute("aria-expanded", "true");
+  if (!terminalOpenedBefore) {
+    printLine("hause terminal. Type help to see what works.", "muted");
+    terminalOpenedBefore = true;
+  }
+  terminalInput.focus();
+}
+
+function closeTerminal() {
+  terminal.close();
+}
+
+terminal.addEventListener("close", () => {
+  terminalToggle.setAttribute("aria-expanded", "false");
+  terminalToggle.focus();
+});
+terminal.addEventListener("click", (event) => {
+  if (event.target === terminal) closeTerminal();
+});
+terminalToggle.addEventListener("click", openTerminal);
+terminalClose.addEventListener("click", closeTerminal);
+
+terminalForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  runCommand(terminalInput.value);
+  terminalInput.value = "";
+});
+
+terminalInput.addEventListener("keydown", (event) => {
+  if (event.key === "Tab") {
+    event.preventDefault();
+    completeInput();
+  } else if (event.key === "ArrowUp" && historyPosition > 0) {
+    event.preventDefault();
+    historyPosition -= 1;
+    terminalInput.value = commandHistory[historyPosition];
+  } else if (event.key === "ArrowDown") {
+    event.preventDefault();
+    historyPosition = Math.min(commandHistory.length, historyPosition + 1);
+    terminalInput.value = commandHistory[historyPosition] ?? "";
+  } else if (event.key === "l" && event.ctrlKey) {
+    event.preventDefault();
+    commands.clear();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  const typingElsewhere = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
+  if ((event.key === "~" || event.key === "`") && !typingElsewhere && !event.metaKey && !event.ctrlKey) {
+    event.preventDefault();
+    if (!terminal.open) openTerminal();
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#010702">
+<title>su hause</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/martian-mono.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+
+<main class="gate" id="gate" hidden>
+  <p class="brand"><span class="brand-prompt">#</span> su <span class="brand-host">hause</span></p>
+
+  <section id="view-signin" hidden>
+    <h1>Sign in</h1>
+    <p>Use the passkey on this device. On a computer, you can also scan with your phone.</p>
+    <button class="primary" id="signin-button" type="button">Sign in with passkey</button>
+    <p class="aside">New device? <button class="link" id="request-access-link" type="button">Request access</button></p>
+  </section>
+
+  <section id="view-setup" hidden>
+    <h1>Register your first device</h1>
+    <p>This passkey unlocks the panel. Every device after this one has to be approved from a device that's already signed in.</p>
+    <label for="setup-name">Device name</label>
+    <input id="setup-name" maxlength="40" autocomplete="off" spellcheck="false">
+    <button class="primary" id="setup-button" type="button">Create passkey</button>
+  </section>
+
+  <section id="view-request" hidden>
+    <h1>Request access</h1>
+    <p>Your laptop or phone will need to approve this device.</p>
+    <label for="request-name">Device name</label>
+    <input id="request-name" maxlength="40" autocomplete="off" spellcheck="false">
+    <button class="primary" id="request-button" type="button">Request access</button>
+    <p class="aside"><button class="link" data-show="signin" type="button">Back to sign in</button></p>
+  </section>
+
+  <section id="view-waiting" hidden>
+    <h1>Waiting for approval</h1>
+    <p>On a signed-in device, open Devices and enter this code:</p>
+    <output class="code" id="enrollment-code"></output>
+    <p class="aside" id="waiting-note">The code expires in 10 minutes.</p>
+    <p class="aside"><button class="link" data-show="signin" type="button">Cancel</button></p>
+  </section>
+
+  <section id="view-approved" hidden>
+    <h1>Approved</h1>
+    <p>Create a passkey on this device to finish.</p>
+    <button class="primary" id="approved-button" type="button">Create passkey</button>
+  </section>
+
+  <p class="message" id="gate-message" role="alert"></p>
+</main>
+
+<div class="console" id="console" hidden>
+  <header class="topbar">
+    <p class="brand"><span class="brand-prompt">#</span> su <span class="brand-host" id="hostname">hause</span></p>
+    <nav class="topbar-actions">
+      <button type="button" id="devices-button">Devices</button>
+      <button type="button" id="signout-button">Sign out</button>
+    </nav>
+  </header>
+
+  <section class="vitals" aria-label="Server load">
+    <div class="vital vital-cpu">
+      <span class="vital-label">CPU</span>
+      <span class="spark" id="cpu-spark" aria-hidden="true"></span>
+      <span class="vital-value" id="cpu-value">–</span>
+    </div>
+    <div class="vital">
+      <span class="vital-label">Memory</span>
+      <span class="meter" id="memory-meter" aria-hidden="true"></span>
+      <span class="vital-value" id="memory-value">–</span>
+    </div>
+    <div class="vital">
+      <span class="vital-label">Load</span>
+      <span class="vital-value" id="load-value">–</span>
+    </div>
+    <div class="vital">
+      <span class="vital-label">Up</span>
+      <span class="vital-value" id="uptime-value">–</span>
+    </div>
+  </section>
+
+  <div class="toolbar">
+    <input type="search" id="filter" placeholder="Filter by name, command, user or PID" aria-label="Filter processes" autocomplete="off" spellcheck="false">
+    <span class="count" id="process-count"></span>
+  </div>
+
+  <div class="table-wrap" id="table-wrap" tabindex="0" aria-label="Processes">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col" data-sort="name"><button type="button">Process</button></th>
+          <th scope="col" data-sort="pid" class="numeric"><button type="button">PID</button></th>
+          <th scope="col" data-sort="user" class="column-user"><button type="button">User</button></th>
+          <th scope="col" data-sort="cpu" class="numeric"><button type="button">CPU %</button></th>
+          <th scope="col" data-sort="memory" class="numeric"><button type="button">Memory</button></th>
+          <th scope="col" data-sort="threads" class="numeric column-threads"><button type="button">Threads</button></th>
+          <th scope="col" data-sort="startedAt" class="column-started"><button type="button">Running for</button></th>
+        </tr>
+      </thead>
+      <tbody id="process-rows"></tbody>
+    </table>
+  </div>
+
+  <footer class="inspector" id="inspector">
+    <div class="inspector-text">
+      <p class="inspector-title" id="inspector-title">Select a process to quit it.</p>
+      <p class="inspector-command" id="inspector-command"></p>
+      <p class="inspector-note" id="inspector-note"></p>
+    </div>
+    <div class="inspector-actions">
+      <button type="button" id="quit-button" disabled>Quit</button>
+      <button type="button" class="danger" id="force-quit-button" disabled>Force quit</button>
+    </div>
+  </footer>
+</div>
+
+<dialog id="signal-dialog" aria-labelledby="signal-title">
+  <h2 id="signal-title"></h2>
+  <p id="signal-body"></p>
+  <pre class="command-preview" id="signal-command"></pre>
+  <p class="hint" id="signal-passkey-hint" hidden>You'll confirm with your passkey first.</p>
+  <p class="message" id="signal-message" role="alert"></p>
+  <div class="dialog-actions">
+    <button type="button" id="signal-cancel">Cancel</button>
+    <button type="button" class="danger" id="signal-confirm"></button>
+  </div>
+</dialog>
+
+<dialog id="devices-dialog" aria-labelledby="devices-title">
+  <div class="dialog-head">
+    <h2 id="devices-title">Devices</h2>
+    <button type="button" class="link" id="devices-close">Close</button>
+  </div>
+  <ul class="device-list" id="device-list"></ul>
+  <form id="approve-form" class="approve" autocomplete="off">
+    <label for="approve-code">Approve a new device</label>
+    <p class="hint">Enter the code shown on the device that's asking for access.</p>
+    <div class="inline">
+      <input id="approve-code" placeholder="ABCD-EFGH" maxlength="9" spellcheck="false" autocapitalize="characters">
+      <button class="primary" type="submit">Approve</button>
+    </div>
+  </form>
+  <p class="message" id="devices-message" role="alert"></p>
+</dialog>
+
+</body>
+</html>
