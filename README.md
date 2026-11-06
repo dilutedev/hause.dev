@@ -27,7 +27,7 @@ cp deploy/hause.env.example deploy/hause.env
 The script builds the binary and does the rest:
 
 - installs the binary to `/usr/local/bin/hause-admin`;
-- runs the binary as the `hause-admin` system user, whose only sudo rights are `/usr/bin/kill`, `/usr/bin/ss -tulpnH` and `readlink` on `/proc/<pid>/exe`;
+- runs the binary as the `hause-admin` system user, whose only sudo rights are `/usr/bin/kill`, `/usr/bin/ss -tulpnH` and `/usr/bin/readlink`;
 - copies the landing page into place and reloads Caddy.
 
 ## Devices
