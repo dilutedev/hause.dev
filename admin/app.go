@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -108,6 +109,7 @@ func (app *App) routes(staticFiles fs.FS) http.Handler {
 	mux.HandleFunc("GET /api/devices", app.requireSession(false, app.handleDeviceList))
 	mux.HandleFunc("DELETE /api/devices/{id}", app.requireSession(true, app.handleDeviceRemove))
 	mux.HandleFunc("GET /api/processes", app.requireSession(false, app.handleProcessList))
+	mux.HandleFunc("GET /api/processes/{pid}/details", app.requireSession(false, app.handleProcessDetails))
 	mux.HandleFunc("POST /api/processes/signal", app.requireSession(true, app.handleProcessSignal))
 	return app.securityHeaders(app.sameOriginWrites(mux))
 }
@@ -559,6 +561,25 @@ func (app *App) handleDeviceRemove(writer http.ResponseWriter, request *http.Req
 
 func (app *App) handleProcessList(writer http.ResponseWriter, request *http.Request, _ string, _ session) {
 	writeJSON(writer, http.StatusOK, app.monitor.snapshot())
+}
+
+func (app *App) handleProcessDetails(writer http.ResponseWriter, request *http.Request, _ string, _ session) {
+	processID, err := strconv.Atoi(request.PathValue("pid"))
+	if err != nil || processID <= 0 {
+		writeError(writer, http.StatusBadRequest, "", "Invalid process ID.")
+		return
+	}
+	startTicks, err := strconv.ParseUint(request.URL.Query().Get("startTicks"), 10, 64)
+	if err != nil {
+		writeError(writer, http.StatusBadRequest, "", "Invalid start time.")
+		return
+	}
+	details, err := app.monitor.details(processID, startTicks)
+	if err != nil {
+		writeError(writer, http.StatusGone, "", err.Error())
+		return
+	}
+	writeJSON(writer, http.StatusOK, details)
 }
 
 type signalTarget struct {

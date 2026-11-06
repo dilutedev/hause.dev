@@ -98,7 +98,7 @@
   </section>
 
   <div class="toolbar">
-    <input type="search" id="filter" placeholder="Filter by name, command, user, PID or port" aria-label="Filter processes" autocomplete="off" spellcheck="false">
+    <input type="search" id="filter" placeholder="Filter by name, command, user or PID" aria-label="Filter processes" autocomplete="off" spellcheck="false">
     <span class="count" id="process-count"></span>
   </div>
 
@@ -112,7 +112,6 @@
           <th scope="col" data-sort="user" class="column-user"><button type="button">User</button></th>
           <th scope="col" data-sort="cpu" class="numeric"><button type="button">CPU %</button></th>
           <th scope="col" data-sort="memory" class="numeric"><button type="button">Memory</button></th>
-          <th scope="col" class="numeric column-ports">Ports</th>
           <th scope="col" data-sort="threads" class="numeric column-threads"><button type="button">Threads</button></th>
           <th scope="col" data-sort="startedAt" class="column-started"><button type="button">Running for</button></th>
         </tr>
@@ -121,19 +120,35 @@
     </table>
   </div>
 
-  <footer class="inspector" id="inspector">
+  <footer class="inspector" id="inspector" hidden>
     <div class="inspector-text">
-      <p class="inspector-title" id="inspector-title">Select a process to quit it.</p>
+      <p class="inspector-title" id="inspector-title"></p>
       <p class="inspector-command" id="inspector-command"></p>
-      <p class="inspector-command" id="inspector-path"></p>
       <p class="inspector-note" id="inspector-note"></p>
     </div>
     <div class="inspector-actions">
-      <button type="button" id="quit-button" disabled>Quit</button>
-      <button type="button" class="danger" id="force-quit-button" disabled>Force quit</button>
+      <button type="button" id="clear-button">Clear</button>
+      <button type="button" id="quit-button">Quit</button>
+      <button type="button" class="danger" id="force-quit-button">Force quit</button>
     </div>
   </footer>
 </div>
+
+<dialog id="process-dialog" aria-labelledby="process-title">
+  <h2 id="process-title"></h2>
+  <dl class="process-facts" id="process-facts"></dl>
+  <p class="field-label">Executable</p>
+  <pre class="command-preview" id="process-executable"></pre>
+  <p class="hint" id="process-executable-missing" hidden>Not readable by the panel</p>
+  <p class="field-label">Command</p>
+  <pre class="command-preview" id="process-command"></pre>
+  <p class="message" id="process-notice" role="alert"></p>
+  <div class="dialog-actions">
+    <button type="button" id="process-close">Close</button>
+    <button type="button" id="process-quit">Quit</button>
+    <button type="button" class="danger" id="process-force-quit">Force quit</button>
+  </div>
+</dialog>
 
 <dialog id="signal-dialog" aria-labelledby="signal-title">
   <h2 id="signal-title"></h2>

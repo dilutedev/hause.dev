@@ -55,8 +55,6 @@ type Process struct {
 	StartedAt   int64   `json:"startedAt"`
 	StartTicks  uint64  `json:"startTicks"`
 	Protected   string  `json:"protected,omitempty"`
-	Executable  string  `json:"executable,omitempty"`
-	Ports       []int   `json:"ports,omitempty"`
 	commandName string
 	userID      uint32
 	cpuTicks    uint64
@@ -151,7 +149,6 @@ func (monitor *ProcessMonitor) sample() {
 		return
 	}
 	currentCPUTicks := make(map[processKey]uint64, len(entries))
-	portsByPID := monitor.listeningPorts()
 	processes := make([]Process, 0, len(entries))
 	for _, entry := range entries {
 		processID, err := strconv.Atoi(entry.Name())
@@ -162,7 +159,6 @@ func (monitor *ProcessMonitor) sample() {
 		if err != nil {
 			continue
 		}
-		process.Ports = portsByPID[processID]
 		key := processKey{pid: process.PID, startTicks: process.StartTicks}
 		currentCPUTicks[key] = process.cpuTicks
 		if previousTicks, seen := monitor.previousCPUTicks[key]; seen && elapsedSeconds > 0 && process.cpuTicks >= previousTicks {
@@ -217,14 +213,10 @@ func (monitor *ProcessMonitor) readProcess(processID int) (Process, error) {
 	arguments := strings.Split(strings.TrimRight(string(commandLine), "\x00"), "\x00")
 	command := strings.TrimSpace(strings.Join(arguments, " "))
 	displayName := commandName
-	executable, _ := os.Readlink(procDirectory + "/exe")
-	if executable == "" && strings.ContainsRune(arguments[0], '/') {
-		executable = arguments[0]
-	}
 	if command == "" {
 		command = "[" + commandName + "]"
-	} else if invokedAs := arguments[0]; !strings.ContainsRune(invokedAs, ' ') {
-		if base := filepath.Base(invokedAs); len(base) > len(commandName) && strings.HasPrefix(base, commandName) {
+	} else if executable := arguments[0]; !strings.ContainsRune(executable, ' ') {
+		if base := filepath.Base(executable); len(base) > len(commandName) && strings.HasPrefix(base, commandName) {
 			displayName = base
 		}
 	}
@@ -237,7 +229,6 @@ func (monitor *ProcessMonitor) readProcess(processID int) (Process, error) {
 		ParentPID:   parentPID,
 		Name:        displayName,
 		Command:     command,
-		Executable:  executable,
 		State:       fields[0],
 		MemoryBytes: residentPages * monitor.pageSize,
 		Threads:     threads,
@@ -253,15 +244,29 @@ func (monitor *ProcessMonitor) readProcess(processID int) (Process, error) {
 
 var ssPidPattern = regexp.MustCompile(`pid=(\d+)`)
 
-// listeningPorts maps process IDs to the TCP/UDP ports they listen on. It
-// shells out to `sudo ss` because an unprivileged process can't read the
-// sockets of other users; without the sudo rule it quietly returns nothing.
-func (monitor *ProcessMonitor) listeningPorts() map[int][]int {
-	output, err := exec.Command("sudo", "-n", "/usr/bin/ss", "-tulpnH").Output()
-	if err != nil {
-		return map[int][]int{}
+type ProcessDetails struct {
+	Executable string `json:"executable"`
+	Ports      []int  `json:"ports"`
+}
+
+func (monitor *ProcessMonitor) details(processID int, startTicks uint64) (ProcessDetails, error) {
+	target, err := monitor.readProcess(processID)
+	if err != nil || target.StartTicks != startTicks {
+		return ProcessDetails{}, errProcessGone
 	}
-	return parseListeningPorts(string(output))
+	details := ProcessDetails{Ports: []int{}}
+	executableLink := fmt.Sprintf("/proc/%d/exe", processID)
+	if executable, err := os.Readlink(executableLink); err == nil {
+		details.Executable = executable
+	} else if output, err := exec.Command("sudo", "-n", "/usr/bin/readlink", executableLink).Output(); err == nil {
+		details.Executable = strings.TrimSpace(string(output))
+	}
+	if output, err := exec.Command("sudo", "-n", "/usr/bin/ss", "-tulpnH").Output(); err == nil {
+		if ports, found := parseListeningPorts(string(output))[processID]; found {
+			details.Ports = ports
+		}
+	}
+	return details, nil
 }
 
 func parseListeningPorts(output string) map[int][]int {
@@ -298,7 +303,6 @@ func parseListeningPorts(output string) map[int][]int {
 }
 
 func (monitor *ProcessMonitor) protectionReason(process Process) string {
-
 	switch {
 	case process.PID == 1:
 		return "Stopping init would bring the whole server down."

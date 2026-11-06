@@ -22,15 +22,24 @@ const ui = {
   uptimeValue: byId("uptime-value"),
   filter: byId("filter"),
   processCount: byId("process-count"),
-  tableWrap: byId("table-wrap"),
   rows: byId("process-rows"),
+  inspector: byId("inspector"),
   inspectorTitle: byId("inspector-title"),
   inspectorCommand: byId("inspector-command"),
-  inspectorPath: byId("inspector-path"),
   inspectorNote: byId("inspector-note"),
   selectVisible: byId("select-visible"),
+  clearButton: byId("clear-button"),
   quitButton: byId("quit-button"),
   forceQuitButton: byId("force-quit-button"),
+  processDialog: byId("process-dialog"),
+  processTitle: byId("process-title"),
+  processFacts: byId("process-facts"),
+  processExecutable: byId("process-executable"),
+  processExecutableMissing: byId("process-executable-missing"),
+  processCommand: byId("process-command"),
+  processNotice: byId("process-notice"),
+  processQuitButton: byId("process-quit"),
+  processForceQuitButton: byId("process-force-quit"),
   signalDialog: byId("signal-dialog"),
   signalTitle: byId("signal-title"),
   signalBody: byId("signal-body"),
@@ -59,7 +68,9 @@ const state = {
   sortDescending: true,
   filterText: "",
   selection: new Map(),
-  selectionAnchor: null,
+  detailKey: null,
+  detailProcess: null,
+  detailInfo: null,
   pendingSignal: null,
   pendingRemoval: null,
 };
@@ -357,6 +368,7 @@ function handleSignedOut(error) {
   if (error instanceof RequestError && error.code === "signin") {
     ui.signalDialog.close();
     ui.devicesDialog.close();
+    ui.processDialog.close();
     showGate("signin", "Your session ended. Sign in again.");
     return true;
   }
@@ -443,8 +455,7 @@ function visibleProcesses() {
           process.name.toLowerCase().includes(needle) ||
           process.command.toLowerCase().includes(needle) ||
           process.user.toLowerCase().includes(needle) ||
-          String(process.pid) === needle ||
-          (process.ports || []).some((port) => String(port).includes(needle)),
+          String(process.pid) === needle,
       )
     : state.snapshot.processes.slice();
   const key = state.sortKey;
@@ -470,10 +481,6 @@ function isSelected(process) {
 function selectedProcesses() {
   if (!state.snapshot) return [];
   return state.snapshot.processes.filter(isSelected);
-}
-
-function selectableProcesses() {
-  return selectedProcesses().filter((process) => !process.protected);
 }
 
 function pruneSelection() {
@@ -510,11 +517,11 @@ function renderTable() {
     checkbox.type = "checkbox";
     checkbox.className = "row-check";
     checkbox.checked = isSelected(process);
+    checkbox.disabled = Boolean(process.protected);
     checkbox.setAttribute("aria-label", `Select ${process.name}`);
     const checkCell = document.createElement("td");
     checkCell.className = "check";
     checkCell.append(checkbox);
-    const portList = (process.ports || []).join(", ");
     row.append(
       checkCell,
       cell(process.name, "name", process.command),
@@ -522,7 +529,6 @@ function renderTable() {
       cell(process.user, "user"),
       cell(formatters.percent(process.cpu), cpuClass),
       cell(formatters.bytes(process.memory), "numeric"),
-      cell(portList, "numeric ports", portList ? `Listening on ${portList}` : ""),
       cell(String(process.threads), "numeric threads"),
       cell(formatters.duration((now - process.startedAt) / 1000), "started", new Date(process.startedAt).toLocaleString()),
     );
@@ -531,9 +537,10 @@ function renderTable() {
   ui.rows.replaceChildren(fragment);
   const total = state.snapshot.processes.length;
   ui.processCount.textContent = processes.length === total ? `${total} processes` : `${processes.length} of ${total} processes`;
-  const selectedVisible = processes.filter(isSelected).length;
-  ui.selectVisible.checked = processes.length > 0 && selectedVisible === processes.length;
-  ui.selectVisible.indeterminate = selectedVisible > 0 && selectedVisible < processes.length;
+  const selectableVisible = processes.filter((process) => !process.protected);
+  const selectedVisible = selectableVisible.filter(isSelected).length;
+  ui.selectVisible.checked = selectableVisible.length > 0 && selectedVisible === selectableVisible.length;
+  ui.selectVisible.indeterminate = selectedVisible > 0 && selectedVisible < selectableVisible.length;
 
   for (const header of document.querySelectorAll("th[data-sort]")) {
     if (header.dataset.sort === state.sortKey) header.setAttribute("aria-sort", state.sortDescending ? "descending" : "ascending");
@@ -543,50 +550,70 @@ function renderTable() {
 
 function renderInspector() {
   const selected = selectedProcesses();
-  const actionable = selectableProcesses();
-  ui.inspectorPath.textContent = "";
+  ui.inspector.hidden = selected.length === 0 && ui.inspectorNote.textContent === "";
   if (selected.length === 0) {
-    ui.inspectorTitle.textContent = "Select processes to act on them.";
+    ui.inspectorTitle.textContent = "";
     ui.inspectorCommand.textContent = "";
-    ui.quitButton.disabled = true;
-    ui.forceQuitButton.disabled = true;
+    ui.inspectorCommand.title = "";
+    ui.clearButton.textContent = "Dismiss";
+    ui.quitButton.hidden = true;
+    ui.forceQuitButton.hidden = true;
     return;
   }
-  if (selected.length > 1) {
-    ui.inspectorTitle.textContent = `${selected.length} processes selected.`;
-    const names = selected.slice(0, 4).map((process) => process.name);
-    if (selected.length > 4) names.push(`… ${selected.length - 4} more`);
-    ui.inspectorCommand.textContent = names.join(", ");
-    ui.inspectorCommand.title = selected.map((process) => `${process.name} (${process.pid})`).join(", ");
-    const blocked = selected.length - actionable.length;
-    if (blocked > 0) {
-      ui.inspectorNote.textContent = `${blocked} protected (systemd, sshd, this panel, …) can't be stopped.`;
-      ui.inspectorNote.className = "inspector-note blocked";
-    } else if (ui.inspectorNote.classList.contains("blocked")) {
-      ui.inspectorNote.textContent = "";
-      ui.inspectorNote.className = "inspector-note";
-    }
-    ui.quitButton.disabled = actionable.length === 0;
-    ui.forceQuitButton.disabled = actionable.length === 0;
+  ui.inspectorTitle.textContent = `${selected.length} process${selected.length === 1 ? "" : "es"} selected`;
+  const names = selected.slice(0, 4).map(targetLabel);
+  if (selected.length > 4) names.push(`… ${selected.length - 4} more`);
+  ui.inspectorCommand.textContent = names.join(", ");
+  ui.inspectorCommand.title = selected.map(targetLabel).join(", ");
+  ui.clearButton.textContent = "Clear";
+  ui.quitButton.textContent = `Quit ${selected.length}`;
+  ui.forceQuitButton.textContent = `Force quit ${selected.length}`;
+  ui.quitButton.hidden = false;
+  ui.forceQuitButton.hidden = false;
+}
+
+function renderDetails() {
+  if (!state.detailKey) return;
+  const liveProcess = state.snapshot.processes.find((candidate) => selectionKey(candidate) === state.detailKey);
+  if (liveProcess) state.detailProcess = liveProcess;
+  const process = state.detailProcess;
+  ui.processTitle.textContent = process.name;
+  if (!liveProcess) {
+    ui.processNotice.textContent = `${targetLabel(process)} has exited.`;
+    ui.processQuitButton.disabled = true;
+    ui.processForceQuitButton.disabled = true;
     return;
   }
-  const process = selected[0];
-  ui.inspectorTitle.textContent = `${process.name}, pid ${process.pid}, parent ${process.ppid}, running as ${process.user}`;
-  ui.inspectorCommand.textContent = process.command;
-  ui.inspectorCommand.title = process.command;
-  if (process.executable) {
-    ui.inspectorPath.textContent = process.executable;
-    ui.inspectorPath.title = process.executable;
+  const sampledAt = state.snapshot.system.sampledAt;
+  const facts = [
+    ["PID", String(process.pid)],
+    ["Parent PID", String(process.ppid)],
+    ["User", process.user],
+    ["CPU %", `${formatters.percent(process.cpu)}%`],
+    ["Memory", formatters.bytes(process.memory)],
+    ["Threads", String(process.threads)],
+    ["Running for", formatters.duration((sampledAt - process.startedAt) / 1000), new Date(process.startedAt).toLocaleString()],
+    ["Ports", state.detailInfo ? state.detailInfo.ports.join(", ") || "none" : "…"],
+  ];
+  const factElements = [];
+  for (const [label, value, title] of facts) {
+    const term = document.createElement("dt");
+    term.textContent = label;
+    const description = document.createElement("dd");
+    description.textContent = value;
+    if (title) description.title = title;
+    factElements.push(term, description);
   }
-  if (process.protected) {
-    ui.inspectorNote.textContent = process.protected;
-    ui.inspectorNote.className = "inspector-note blocked";
-  } else if (ui.inspectorNote.classList.contains("blocked")) {
-    ui.inspectorNote.textContent = "";
-    ui.inspectorNote.className = "inspector-note";
-  }
-  ui.quitButton.disabled = Boolean(process.protected);
-  ui.forceQuitButton.disabled = Boolean(process.protected);
+  ui.processFacts.replaceChildren(...factElements);
+  const executable = state.detailInfo ? state.detailInfo.executable : "";
+  ui.processExecutable.textContent = executable;
+  ui.processExecutable.hidden = !executable;
+  ui.processExecutableMissing.textContent = state.detailInfo ? "Not readable by the panel" : "Looking up…";
+  ui.processExecutableMissing.hidden = Boolean(executable);
+  ui.processCommand.textContent = process.command;
+  ui.processNotice.textContent = process.protected || "";
+  ui.processQuitButton.disabled = Boolean(process.protected);
+  ui.processForceQuitButton.disabled = Boolean(process.protected);
 }
 
 function render() {
@@ -594,37 +621,17 @@ function render() {
   renderVitals(state.snapshot.system);
   renderTable();
   renderInspector();
+  renderDetails();
 }
 
-function setSelection(processes) {
-  state.selection = new Map(processes.map((process) => [selectionKey(process), true]));
+function clearInspectorNote() {
+  ui.inspectorNote.textContent = "";
 }
 
 function toggleSelection(process) {
   const key = selectionKey(process);
   if (state.selection.has(key)) state.selection.delete(key);
   else state.selection.set(key, true);
-}
-
-function selectProcess(process, { toggle = false, range = false } = {}) {
-  if (!process) return;
-  const visible = visibleProcesses();
-  if (range && state.selectionAnchor) {
-    const from = visible.findIndex((candidate) => selectionKey(candidate) === selectionKey(state.selectionAnchor));
-    const to = visible.findIndex((candidate) => selectionKey(candidate) === selectionKey(process));
-    if (from !== -1 && to !== -1) {
-      const [start, end] = from < to ? [from, to] : [to, from];
-      setSelection(visible.slice(start, end + 1));
-      render();
-      return;
-    }
-  }
-  if (toggle) toggleSelection(process);
-  else setSelection([process]);
-  if (!toggle) state.selectionAnchor = process;
-  ui.inspectorNote.textContent = "";
-  ui.inspectorNote.className = "inspector-note";
-  render();
 }
 
 ui.rows.addEventListener("click", (event) => {
@@ -635,39 +642,25 @@ ui.rows.addEventListener("click", (event) => {
   );
   if (!process) return;
   if (event.target.closest(".row-check")) {
+    if (process.protected) return;
     toggleSelection(process);
-    state.selectionAnchor = process;
+    clearInspectorNote();
     render();
     return;
   }
-  selectProcess(process, { toggle: event.ctrlKey || event.metaKey, range: event.shiftKey });
+  openDetails(process);
 });
 
 ui.selectVisible.addEventListener("change", () => {
   if (!state.snapshot) return;
-  const visible = visibleProcesses();
+  const selectable = visibleProcesses().filter((process) => !process.protected);
   if (ui.selectVisible.checked) {
-    for (const process of visible) state.selection.set(selectionKey(process), true);
+    for (const process of selectable) state.selection.set(selectionKey(process), true);
   } else {
-    for (const process of visible) state.selection.delete(selectionKey(process));
+    for (const process of selectable) state.selection.delete(selectionKey(process));
   }
+  clearInspectorNote();
   render();
-});
-
-ui.tableWrap.addEventListener("keydown", (event) => {
-  if (!state.snapshot || (event.key !== "ArrowDown" && event.key !== "ArrowUp")) return;
-  event.preventDefault();
-  const processes = visibleProcesses();
-  if (processes.length === 0) return;
-  const anchor = state.selectionAnchor && processes.find(
-    (candidate) => selectionKey(candidate) === selectionKey(state.selectionAnchor),
-  );
-  const currentIndex = anchor ? processes.indexOf(anchor) : -1;
-  const step = event.key === "ArrowDown" ? 1 : -1;
-  const nextIndex = currentIndex === -1 ? 0 : Math.min(processes.length - 1, Math.max(0, currentIndex + step));
-  selectProcess(processes[nextIndex]);
-  const selectedRow = ui.rows.querySelector("tr.selected");
-  if (selectedRow) selectedRow.scrollIntoView({ block: "nearest" });
 });
 
 for (const header of document.querySelectorAll("th[data-sort]")) {
@@ -714,9 +707,27 @@ function targetLabel(process) {
   return `${process.name} (${process.pid})`;
 }
 
-function openSignalDialog(signal) {
-  const targets = selectableProcesses();
-  if (targets.length === 0) return;
+function openDetails(process) {
+  const detailKey = selectionKey(process);
+  state.detailKey = detailKey;
+  state.detailProcess = process;
+  state.detailInfo = null;
+  renderDetails();
+  ui.processDialog.showModal();
+  byId("process-close").focus();
+  api(`/api/processes/${process.pid}/details?startTicks=${process.startTicks}`)
+    .catch((error) => {
+      handleSignedOut(error);
+      return { executable: "", ports: [] };
+    })
+    .then((info) => {
+      if (state.detailKey !== detailKey) return;
+      state.detailInfo = info;
+      renderDetails();
+    });
+}
+
+function openSignalDialog(signal, targets) {
   const copy = signalCopy[signal];
   state.pendingSignal = {
     signal,
@@ -730,9 +741,7 @@ function openSignalDialog(signal) {
     ui.signalBody.textContent = `${copy.body} pid ${process.pid}, running as ${process.user}.`;
     ui.signalCommand.textContent = process.command;
   } else {
-    const protectedCount = selectedProcesses().length - targets.length;
-    const blockedNote = protectedCount > 0 ? ` ${protectedCount} protected process${protectedCount === 1 ? " is" : "es are"} skipped.` : "";
-    ui.signalBody.textContent = `${copy.body}${blockedNote}`;
+    ui.signalBody.textContent = copy.body;
     const labels = targets.slice(0, 6).map(targetLabel);
     if (targets.length > 6) labels.push(`… ${targets.length - 6} more`);
     ui.signalCommand.textContent = labels.join("\n");
@@ -759,8 +768,28 @@ async function withFreshPasskey(action) {
   }
 }
 
-ui.quitButton.addEventListener("click", () => openSignalDialog("TERM"));
-ui.forceQuitButton.addEventListener("click", () => openSignalDialog("KILL"));
+ui.quitButton.addEventListener("click", () => openSignalDialog("TERM", selectedProcesses()));
+ui.forceQuitButton.addEventListener("click", () => openSignalDialog("KILL", selectedProcesses()));
+ui.clearButton.addEventListener("click", () => {
+  state.selection.clear();
+  clearInspectorNote();
+  render();
+});
+
+function openSignalFromDetails(signal) {
+  const process = state.detailProcess;
+  ui.processDialog.close();
+  openSignalDialog(signal, [process]);
+}
+
+ui.processQuitButton.addEventListener("click", () => openSignalFromDetails("TERM"));
+ui.processForceQuitButton.addEventListener("click", () => openSignalFromDetails("KILL"));
+byId("process-close").addEventListener("click", () => ui.processDialog.close());
+ui.processDialog.addEventListener("close", () => {
+  state.detailKey = null;
+  state.detailProcess = null;
+  state.detailInfo = null;
+});
 byId("signal-cancel").addEventListener("click", () => ui.signalDialog.close());
 
 ui.signalConfirm.addEventListener("click", async () => {
@@ -786,10 +815,11 @@ ui.signalConfirm.addEventListener("click", async () => {
         const label = name ? `${name} (${result.pid})` : `pid ${result.pid}`;
         return `${label}: ${result.error}`;
       };
-      parts.push(`Failed: ${failed.map(describe).join("; ")}.`);
+      parts.push(`Failed: ${failed.map(describe).join("; ")}`);
     }
     ui.inspectorNote.textContent = parts.join(" ");
-    ui.inspectorNote.className = "inspector-note";
+    for (const target of pending.targets) state.selection.delete(selectionKey(target));
+    render();
     refresh();
   } catch (error) {
     if (handleSignedOut(error)) return;

@@ -1,1 +1,1 @@
-hause-admin ALL=(root) NOPASSWD: /usr/bin/kill, /usr/bin/ss
+hause-admin ALL=(root) NOPASSWD: /usr/bin/kill, /usr/bin/ss -tulpnH, /usr/bin/readlink /proc/[0-9]*/exe

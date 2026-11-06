@@ -148,7 +148,7 @@ label { display: block; color: var(--glow); margin: 1.4rem 0 0.4rem; }
 .table-wrap { overflow: auto; border-top: 1px solid var(--line); }
 .table-wrap:focus-visible { outline-offset: -2px; }
 
-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+table { width: 100%; border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; }
 thead th {
   position: sticky;
   top: 0;
@@ -172,14 +172,17 @@ th[aria-sort] button { color: var(--bright); }
 th[aria-sort="descending"] button::after { content: " ↓"; }
 th[aria-sort="ascending"] button::after { content: " ↑"; }
 th.numeric, td.numeric { text-align: right; }
-th.column-check { width: 1%; }
+th.column-check { width: 1%; padding: 0.55rem 0 0.55rem 0.75rem; }
 input[type="checkbox"] {
   width: auto;
   accent-color: var(--mid);
   margin: 0;
+  padding: 0;
   vertical-align: middle;
   cursor: pointer;
 }
+input[type="checkbox"]:focus-visible { outline: 2px solid var(--bright); outline-offset: 2px; }
+input[type="checkbox"]:disabled { cursor: default; opacity: 0.35; }
 td.check { padding-right: 0; }
 
 td {
@@ -189,8 +192,7 @@ td {
 }
 td.name { max-width: 28rem; overflow: hidden; text-overflow: ellipsis; color: var(--glow); }
 td.user, td.started { color: var(--muted); }
-td.ports { color: var(--bright); }
-tbody tr { cursor: default; }
+tbody tr { cursor: pointer; }
 tbody tr:hover { background: rgba(11, 58, 28, 0.35); }
 tbody tr.selected { background: var(--deep); box-shadow: inset 3px 0 0 var(--bright); }
 tbody tr.protected td.name { color: var(--muted); }
@@ -212,7 +214,6 @@ td.warm { color: var(--bright); }
 .inspector-command { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inspector-note:empty { display: none; }
 .inspector-note { color: var(--bright); }
-.inspector-note.blocked { color: var(--danger); }
 .inspector-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
 
 dialog {
@@ -240,6 +241,11 @@ dialog p { margin: 0 0 0.75rem; }
   color: var(--muted);
 }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
+#process-dialog { width: min(40rem, calc(100vw - 2rem)); }
+.process-facts { display: grid; grid-template-columns: max-content 1fr; gap: 0.3rem 1.2rem; margin: 0 0 1rem; }
+.process-facts dt { color: var(--muted); }
+.process-facts dd { margin: 0; color: var(--glow); font-variant-numeric: tabular-nums; }
+.field-label { margin: 0 0 0.3rem; color: var(--muted); }
 .dialog-head { display: flex; justify-content: space-between; align-items: baseline; }
 
 .device-list { list-style: none; margin: 0.5rem 0 0; padding: 0; }
@@ -272,9 +278,10 @@ dialog p { margin: 0 0 0.75rem; }
   .spark { display: none; }
   .topbar-actions button { padding: 0.3rem 0.55rem; }
   th button, td { padding-left: 0.5rem; padding-right: 0.5rem; }
+  th.column-check { padding-left: 0.5rem; }
   td.name { max-width: 8.5rem; }
   .inspector { flex-direction: column; align-items: stretch; gap: 0.75rem; }
-  .inspector-actions button { flex: 1; padding: 0.65rem; }
+  .inspector-actions button { flex: 1; padding: 0.65rem 0.4rem; white-space: nowrap; }
   .count { display: none; }
 }
 

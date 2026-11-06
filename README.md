@@ -27,7 +27,7 @@ cp deploy/hause.env.example deploy/hause.env
 The script builds the binary and does the rest:
 
 - installs the binary to `/usr/local/bin/hause-admin`;
-- runs the binary as the `hause-admin` system user, whose only sudo rights are `/usr/bin/kill` and `/usr/bin/ss`;
+- runs the binary as the `hause-admin` system user, whose only sudo rights are `/usr/bin/kill`, `/usr/bin/ss -tulpnH` and `readlink` on `/proc/<pid>/exe`;
 - copies the landing page into place and reloads Caddy.
 
 ## Devices
@@ -50,5 +50,5 @@ The script builds the binary and does the rest:
 
 - Quitting processes, approving a device and removing a device all require a passkey check from the last 10 minutes.
 - These processes are shown but can't be stopped from the panel: init, systemd services, sshd, tailscaled, caddy, dockerd/containerd, dbus, kernel threads and the panel itself.
-- Listening ports are read with `sudo ss`. Without that sudo right the Ports column stays empty.
+- Listening ports and the executable path are read with `sudo ss` and `sudo readlink` only when you open a process, so the journal isn't flooded with sudo entries.
 - Every sign-in, device change and signal sent goes to the journal (`journalctl -u hause-admin`).
